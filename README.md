@@ -1,6 +1,6 @@
 # sqpnp-rs
 
-[![crate](https://img.shields.io/crates/v/sqpnp-rs.svg)](https://crates.io/crates/sqpnp-rs)
+[![crate](https://img.shields.io/crates/v/sqpnp.svg)](https://crates.io/crates/sqpnp)
 
 `sqpnp-rs` is a pure Rust implementation of the SQPnP perspective-n-point
 algorithm, based on the [C++ implementation](https://github.com/terzakig/sqpnp).
