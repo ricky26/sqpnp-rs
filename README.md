@@ -5,8 +5,6 @@
 `sqpnp-rs` is a pure Rust implementation of the SQPnP perspective-n-point
 algorithm, based on the [C++ implementation](https://github.com/terzakig/sqpnp).
 
-There is another SQPnP implementation in Rust, [here](https://github.com/powei-lin/sqpnp_simple).
-
 ## See Also
 
 There is another pure-Rust implementation of SQPnP, here:
