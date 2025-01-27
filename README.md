@@ -17,7 +17,7 @@ let p2d = [
     vec2(-0.5, -0.5),
 ];
 
-let mut solver = SqPnPSolver::<DefaultSqPnPParameters>::new();
+let mut solver = Solver::<DefaultParameters>::new();
 if (solver.solve(&p3d, &p2d, None)) {
     let solution = solver.best_solution().unwrap();
     let r = solution.rotation_matrix();
