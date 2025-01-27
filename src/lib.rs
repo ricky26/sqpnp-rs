@@ -99,16 +99,16 @@ fn orthogonality_error(x: &NMat3) -> Float {
 /// A possible PnP solution.
 ///
 /// Care should be taken to check that the error returned from
-/// [`SqPnPSolution::sq_error()`] is acceptable.
+/// [`Solution::error_squared()`] is acceptable.
 #[derive(Clone, Debug, Default)]
-pub struct SqPnPSolution {
+pub struct Solution {
     rotation: NVec9,
     translation: NVec3,
     num_iterations: usize,
     sq_error: Float,
 }
 
-impl SqPnPSolution {
+impl Solution {
     /// A rotation matrix that will rotate points from the reference object
     /// into 3D space which will line up with the projected points.
     pub fn rotation_matrix(&self) -> Mat3 {
@@ -131,7 +131,7 @@ impl SqPnPSolution {
     }
 
     /// The square of the solution error.
-    pub fn sq_error(&self) -> Float {
+    pub fn error_squared(&self) -> Float {
         self.sq_error
     }
 
@@ -180,7 +180,7 @@ impl SqPnPSolution {
 }
 
 /// Parameters used by the SQPnP algorithm.
-pub trait SqPnPParameters {
+pub trait Parameters {
     const RANK_TOLERANCE: Float;
     const SQP_SQUARED_TOLERANCE: Float;
     const SQP_DET_THRESHOLD: Float;
@@ -276,9 +276,9 @@ pub fn eigen_vectors_svd(m: &NMat9) -> (NMat9, NVec9) {
 
 /// Default parameters for the SQPnP algorithm.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct DefaultSqPnPParameters;
+pub struct DefaultParameters;
 
-impl SqPnPParameters for DefaultSqPnPParameters {
+impl Parameters for DefaultParameters {
     const RANK_TOLERANCE: Float = 1e-7;
     const SQP_SQUARED_TOLERANCE: Float = 1e-10;
     const SQP_DET_THRESHOLD: Float = 1.01;
@@ -304,28 +304,28 @@ impl SqPnPParameters for DefaultSqPnPParameters {
 ///
 /// This struct can be stored to minimise memory allocations used for solutions.
 #[derive(Clone, Debug)]
-pub struct SqPnPSolver<P = DefaultSqPnPParameters> {
+pub struct Solver<P = DefaultParameters> {
     _parameters: PhantomData<P>,
-    solutions: Vec<SqPnPSolution>,
+    solutions: Vec<Solution>,
 }
 
-impl<P> Default for SqPnPSolver<P> {
+impl<P> Default for Solver<P> {
     fn default() -> Self {
-        SqPnPSolver {
+        Solver {
             _parameters: PhantomData,
             solutions: Vec::new(),
         }
     }
 }
 
-impl<P: SqPnPParameters> SqPnPSolver<P> {
+impl<P: Parameters> Solver<P> {
     /// A list of all found solutions during the previous call to [`Self::solve()`].
-    pub fn solutions(&self) -> &[SqPnPSolution] {
+    pub fn solutions(&self) -> &[Solution] {
         &self.solutions
     }
 
     /// Get the best stored solution from the previous call to [`Self::solve()`].
-    pub fn best_solution(&self) -> Option<&SqPnPSolution> {
+    pub fn best_solution(&self) -> Option<&Solution> {
         self.solutions.iter()
             .fold(None, |best, next| {
                 if let Some(best) = best {
@@ -341,8 +341,8 @@ impl<P: SqPnPParameters> SqPnPSolver<P> {
     }
 
     /// Create a new SQPnP solver.
-    pub fn new() -> SqPnPSolver<P> {
-        SqPnPSolver::default()
+    pub fn new() -> Solver<P> {
+        Solver::default()
     }
 
     fn nearest_rotation_matrix(r: &NVec9) -> NVec9 {
@@ -351,7 +351,7 @@ impl<P: SqPnPParameters> SqPnPSolver<P> {
 
     fn handle_solution(
         &mut self,
-        mut solution: SqPnPSolution,
+        mut solution: Solution,
         mut min_sq_err: Float,
         points: &[Vec3],
         weights: Option<&[f32]>,
@@ -640,7 +640,7 @@ impl<P: SqPnPParameters> SqPnPSolver<P> {
         delta + n * y
     }
 
-    fn run_sqp(r0: &NVec9, omega: &NMat9) -> SqPnPSolution {
+    fn run_sqp(r0: &NVec9, omega: &NMat9) -> Solution {
         let mut r = *r0;
         let mut delta_len_sq = Float::MAX;
         let mut step = 0;
@@ -665,7 +665,7 @@ impl<P: SqPnPParameters> SqPnPSolver<P> {
             r
         };
 
-        SqPnPSolution {
+        Solution {
             num_iterations: step,
             rotation: clean_r,
             ..Default::default()
@@ -870,7 +870,7 @@ impl<P: SqPnPParameters> SqPnPSolver<P> {
                 let det_e = e_mat.determinant();
                 let r = e * det_e;
                 let t = p * r;
-                let solution = SqPnPSolution {
+                let solution = Solution {
                     rotation: r,
                     translation: t,
                     ..Default::default()
@@ -951,7 +951,7 @@ mod tests {
         let p3d_t = p3d.map(|p| (r * p) + t);
         let p2d = p3d_t.map(|p| p.truncate() / p.z);
 
-        let mut solver = SqPnPSolver::<DefaultSqPnPParameters>::new();
+        let mut solver = Solver::<DefaultParameters>::new();
         assert!(solver.solve(&p3d, &p2d, None));
 
         let solution = solver.best_solution().unwrap();
@@ -1035,7 +1035,7 @@ mod tests {
             println!("v {} {} 1", p.x, p.y);
         }
 
-        let mut solver = SqPnPSolver::<DefaultSqPnPParameters>::new();
+        let mut solver = Solver::<DefaultParameters>::new();
         assert!(solver.solve(&p3d, &p2d, None));
 
         let solution = solver.best_solution().unwrap();
@@ -1112,7 +1112,7 @@ mod tests {
             println!("v {} {} 0.0", p.x * 0.001, p.y * 0.001);
         }
 
-        let mut solver = SqPnPSolver::<DefaultSqPnPParameters>::new();
+        let mut solver = Solver::<DefaultParameters>::new();
         assert!(solver.solve(&p3d, &p2d, None));
 
         let solution = solver.best_solution().unwrap();
