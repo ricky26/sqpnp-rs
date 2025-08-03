@@ -10,8 +10,8 @@ categories = ["computer-vision"]
 edition = "2021"
 
 [dependencies]
-glam = { version = "0.29.2" }
-nalgebra = { version = "0.33.2", features = ["convert-glam029"] }
+glam = "0.30"
+nalgebra = { version = "0.34", features = ["convert-glam030"] }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = "0.9"
