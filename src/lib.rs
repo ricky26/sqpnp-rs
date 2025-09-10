@@ -147,7 +147,8 @@ impl Solution {
 
     fn has_positive_majority_depths(&self, points: &[Vec3], weights: Option<&[f32]>) -> bool {
         let (pos, neg) = if let Some(weights) = weights {
-            points.iter()
+            points
+                .iter()
                 .zip(weights)
                 .fold((0, 0), |(pos, neg), (&p, &w)| {
                     if w <= 0.0 {
@@ -163,16 +164,15 @@ impl Solution {
                     }
                 })
         } else {
-            points.iter()
-                .fold((0, 0), |(pos, neg), &p| {
-                    let p: SVector<f32, 3> = p.into();
-                    let z = self.fast_transform_z(convert(p));
-                    if z > 0. {
-                        (pos + 1, neg)
-                    } else {
-                        (pos, neg + 1)
-                    }
-                })
+            points.iter().fold((0, 0), |(pos, neg), &p| {
+                let p: SVector<f32, 3> = p.into();
+                let z = self.fast_transform_z(convert(p));
+                if z > 0. {
+                    (pos + 1, neg)
+                } else {
+                    (pos, neg + 1)
+                }
+            })
         };
 
         pos >= neg
@@ -326,18 +326,17 @@ impl<P: Parameters> Solver<P> {
 
     /// Get the best stored solution from the previous call to [`Self::solve()`].
     pub fn best_solution(&self) -> Option<&Solution> {
-        self.solutions.iter()
-            .fold(None, |best, next| {
-                if let Some(best) = best {
-                    if next.sq_error < best.sq_error {
-                        Some(next)
-                    } else {
-                        Some(best)
-                    }
-                } else {
+        self.solutions.iter().fold(None, |best, next| {
+            if let Some(best) = best {
+                if next.sq_error < best.sq_error {
                     Some(next)
+                } else {
+                    Some(best)
                 }
-            })
+            } else {
+                Some(next)
+            }
+        })
     }
 
     /// Create a new SQPnP solver.
@@ -359,13 +358,13 @@ impl<P: Parameters> Solver<P> {
         omega: &NMat9,
     ) -> Float {
         if !solution.has_positive_depth(mean)
-            && !solution.has_positive_majority_depths(points, weights) {
+            && !solution.has_positive_majority_depths(points, weights)
+        {
             return min_sq_err;
         }
 
         let old_sq_err = min_sq_err;
-        let new_sq_err = (omega * solution.rotation)
-            .dot(&solution.rotation);
+        let new_sq_err = (omega * solution.rotation).dot(&solution.rotation);
         solution.sq_error = new_sq_err;
         if min_sq_err > new_sq_err {
             min_sq_err = new_sq_err;
@@ -380,8 +379,7 @@ impl<P: Parameters> Solver<P> {
         }
 
         for existing in &mut self.solutions {
-            let e = (existing.rotation - solution.rotation)
-                .magnitude_squared();
+            let e = (existing.rotation - solution.rotation).magnitude_squared();
             if e >= P::EQUAL_VECTORS_SQUARED_DIFF {
                 continue;
             }
@@ -397,9 +395,7 @@ impl<P: Parameters> Solver<P> {
         min_sq_err
     }
 
-    fn row_and_null_space(
-        r: &NVec9,
-    ) -> (NMat9x6, NMat9x3, NMat6) {
+    fn row_and_null_space(r: &NVec9) -> (NMat9x6, NMat9x3, NMat6) {
         const NORM_THRESHOLD: Float = 0.1;
 
         let mut h = NMat9x6::zeros();
@@ -440,7 +436,9 @@ impl<P: Parameters> Solver<P> {
         let da2 = a.dot(&q2);
         let q4 = b - db1 * q1;
         let q5 = a - da2 * q2;
-        let il34 = (q4.magnitude_squared() + q5.magnitude_squared()).sqrt().recip();
+        let il34 = (q4.magnitude_squared() + q5.magnitude_squared())
+            .sqrt()
+            .recip();
         let q4 = q4 * il34;
         let q5 = q5 * il34;
         h[(0, 3)] = q4[0];
@@ -521,7 +519,8 @@ impl<P: Parameters> Solver<P> {
             pn.column(8).magnitude(),
         ];
 
-        let (max_1_index, max_1_value) = col_len.iter()
+        let (max_1_index, max_1_value) = col_len
+            .iter()
             .enumerate()
             .fold(None, |acc, (index, &len)| {
                 if len < NORM_THRESHOLD {
@@ -542,7 +541,8 @@ impl<P: Parameters> Solver<P> {
         n.set_column(0, &(v1 / max_1_value));
         col_len[max_1_index] = -1.;
 
-        let (min_2_index, _) = col_len.iter()
+        let (min_2_index, _) = col_len
+            .iter()
             .enumerate()
             .fold(None, |acc, (index, &len)| {
                 if len < NORM_THRESHOLD {
@@ -568,7 +568,8 @@ impl<P: Parameters> Solver<P> {
         n.set_column(1, &x);
         col_len[min_2_index] = -1.;
 
-        let (min_3_index, _) = col_len.iter()
+        let (min_3_index, _) = col_len
+            .iter()
             .enumerate()
             .fold(None, |acc, (index, &len)| {
                 if len < NORM_THRESHOLD {
@@ -592,9 +593,7 @@ impl<P: Parameters> Solver<P> {
             .unwrap();
 
         let v3: NVec9 = pn.column(min_3_index).into();
-        let x = v3
-            - (v3.dot(&n.column(1)) * n.column(1))
-            - (v3.dot(&n.column(0)) * n.column(0));
+        let x = v3 - (v3.dot(&n.column(1)) * n.column(1)) - (v3.dot(&n.column(0)) * n.column(0));
         let x = x / x.magnitude();
         n.set_column(2, &x);
 
@@ -622,7 +621,8 @@ impl<P: Parameters> Solver<P> {
         let x2 = g[2] / jh[(2, 2)];
         let x3 = (g[3] - x0 * jh[(3, 0)] - x1 * jh[(3, 1)]) / jh[(3, 3)];
         let x4 = (g[4] - x1 * jh[(4, 1)] - x2 * jh[(4, 2)] - x3 * jh[(4, 3)]) / jh[(4, 4)];
-        let x5 = (g[5] - x0 * jh[(5, 0)] - x2 * jh[(5, 2)] - x3 * jh[(5, 3)] - x4 * jh[(5, 4)]) / jh[(5, 5)];
+        let x5 = (g[5] - x0 * jh[(5, 0)] - x2 * jh[(5, 2)] - x3 * jh[(5, 3)] - x4 * jh[(5, 4)])
+            / jh[(5, 5)];
         let x = NVec6::from([x0, x1, x2, x3, x4, x5]);
 
         let delta = h * x;
@@ -808,9 +808,15 @@ impl<P: Parameters> Solver<P> {
         omega[(8, 5)] = omega[(5, 8)];
 
         let q = NMat3::new(
-            sum_w, 0., -sum_w_proj.x,
-            0., sum_w, -sum_w_proj.y,
-            -sum_w_proj.x, -sum_w_proj.y, sum_w_proj_len_sq,
+            sum_w,
+            0.,
+            -sum_w_proj.x,
+            0.,
+            sum_w,
+            -sum_w_proj.y,
+            -sum_w_proj.x,
+            -sum_w_proj.y,
+            sum_w_proj_len_sq,
         );
         let q_inv = q.try_inverse()?;
         let p = -q_inv * qa;
@@ -843,8 +849,8 @@ impl<P: Parameters> Solver<P> {
             return false;
         }
 
-        let Some((omega, p, point_mean)) =
-            Self::calculate_omega(points_3d, points_2d, weights) else {
+        let Some((omega, p, point_mean)) = Self::calculate_omega(points_3d, points_2d, weights)
+        else {
             return false;
         };
         let (eigen_vectors, eigen_values) = P::eigen_vectors(&omega);
@@ -875,19 +881,40 @@ impl<P: Parameters> Solver<P> {
                     translation: t,
                     ..Default::default()
                 };
-                min_sq_error = self.handle_solution(solution, min_sq_error, points_3d, weights, point_mean, &omega);
+                min_sq_error = self.handle_solution(
+                    solution,
+                    min_sq_error,
+                    points_3d,
+                    weights,
+                    point_mean,
+                    &omega,
+                );
                 continue;
             }
 
             let r = Self::nearest_rotation_matrix(&e);
             let mut solution = Self::run_sqp(&r, &omega);
             solution.translation = p * solution.rotation;
-            min_sq_error = self.handle_solution(solution, min_sq_error, points_3d, weights, point_mean, &omega);
+            min_sq_error = self.handle_solution(
+                solution,
+                min_sq_error,
+                points_3d,
+                weights,
+                point_mean,
+                &omega,
+            );
 
             let r = Self::nearest_rotation_matrix(&-e);
             let mut solution = Self::run_sqp(&r, &omega);
             solution.translation = p * solution.rotation;
-            min_sq_error = self.handle_solution(solution, min_sq_error, points_3d, weights, point_mean, &omega);
+            min_sq_error = self.handle_solution(
+                solution,
+                min_sq_error,
+                points_3d,
+                weights,
+                point_mean,
+                &omega,
+            );
         }
 
         let mut c = 1;
@@ -905,12 +932,26 @@ impl<P: Parameters> Solver<P> {
             let r = Self::nearest_rotation_matrix(&e);
             let mut solution = Self::run_sqp(&r, &omega);
             solution.translation = p * solution.rotation;
-            min_sq_error = self.handle_solution(solution, min_sq_error, points_3d, weights, point_mean, &omega);
+            min_sq_error = self.handle_solution(
+                solution,
+                min_sq_error,
+                points_3d,
+                weights,
+                point_mean,
+                &omega,
+            );
 
             let r = Self::nearest_rotation_matrix(&-e);
             let mut solution = Self::run_sqp(&r, &omega);
             solution.translation = p * solution.rotation;
-            min_sq_error = self.handle_solution(solution, min_sq_error, points_3d, weights, point_mean, &omega);
+            min_sq_error = self.handle_solution(
+                solution,
+                min_sq_error,
+                points_3d,
+                weights,
+                point_mean,
+                &omega,
+            );
 
             c += 1;
         }
@@ -921,10 +962,10 @@ impl<P: Parameters> Solver<P> {
 
 #[cfg(test)]
 mod tests {
-    use std::f32::consts::PI;
     use super::*;
     use glam::{vec2, vec3, EulerRot, Quat};
     use rand::Rng;
+    use std::f32::consts::PI;
 
     #[test]
     fn test_example_solution() {
@@ -986,7 +1027,9 @@ mod tests {
             max_d2 = d2.max(max_d2);
 
             if d2 > 0.5 {
-                panic!("point {index} too far, expected {a} got {b} (t={s_t} r={rx},{ry},{rz} ({r}))");
+                panic!(
+                    "point {index} too far, expected {a} got {b} (t={s_t} r={rx},{ry},{rz} ({r}))"
+                );
             }
         }
 
@@ -1075,29 +1118,30 @@ mod tests {
 
     #[test]
     fn test_random() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut p3d = Vec::with_capacity(1024);
         let mut p2d = Vec::with_capacity(p3d.capacity());
 
         let true_r_axis = vec3(
-            rng.gen_range(-1.0..=1.0),
-            rng.gen_range(-1.0..=1.0),
-            rng.gen_range(-1.0..=1.0),
-        ).normalize_or_zero();
-        let true_r_angle = rng.gen_range(0.0..(2. * PI));
+            rng.random_range(-1.0..=1.0),
+            rng.random_range(-1.0..=1.0),
+            rng.random_range(-1.0..=1.0),
+        )
+        .normalize_or_zero();
+        let true_r_angle = rng.random_range(0.0..(2. * PI));
         let true_r = Quat::from_axis_angle(true_r_axis, true_r_angle);
         let true_t = vec3(
-            rng.gen_range(-1.0..1.0),
-            rng.gen_range(-1.0..1.0),
-            rng.gen_range(1.5..3.0),
+            rng.random_range(-1.0..1.0),
+            rng.random_range(-1.0..1.0),
+            rng.random_range(1.5..3.0),
         );
 
         for _ in 0..64 {
             let p3 = vec3(
-                rng.gen_range(-1.0..1.0),
-                rng.gen_range(-1.0..1.0),
-                rng.gen_range(-1.0..1.0),
+                rng.random_range(-1.0..1.0),
+                rng.random_range(-1.0..1.0),
+                rng.random_range(-1.0..1.0),
             );
             let pt = true_r * p3 + true_t;
             let p2 = pt.truncate() / pt.z;
