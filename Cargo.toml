@@ -1,6 +1,6 @@
 [package]
 name = "sqpnp"
-version = "0.2.0"
+version = "0.3.0"
 description = "A pure Rust implementation of the SQPnP perspective-n-point algorithm"
 authors = ["Erica Taylor <rickytaylor26@gmail.com>"]
 repository = "https://www.github.com/ricky26/sqpnp-rs"
