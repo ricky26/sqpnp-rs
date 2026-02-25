@@ -138,7 +138,7 @@ impl Solution {
     fn fast_transform_z(&self, p: NVec3) -> Float {
         let r = &self.rotation;
         let t = &self.translation;
-        r[6] * p.x + r[7] * p.y * r[8] * p.z + t.z
+        r[6] * p.x + r[7] * p.y + r[8] * p.z + t.z
     }
 
     fn has_positive_depth(&self, p: NVec3) -> bool {
@@ -966,6 +966,48 @@ mod tests {
     use glam::{vec2, vec3, EulerRot, Quat};
     use rand::Rng;
     use std::f32::consts::PI;
+
+    #[test]
+    fn test_almost_planar_example() {
+        // Confirms fast_transform_z() is correct
+        let p3d = [
+            vec3(-0.25, 0.25, 1.0),
+            vec3(0.25, 0.25, 1.0),
+            vec3(0.25, -0.25, 1.0),
+            vec3(-0.25, -0.25, 1.0),
+        ];
+        let p2d = [
+            vec2(-0.249, 0.251),
+            vec2(0.251, 0.251),
+            vec2(0.251, -0.2499),
+            vec2(-0.2499, -0.2499),
+        ];
+
+        let mut solver = Solver::<DefaultParameters>::new();
+        assert!(solver.solve(&p3d, &p2d, None));
+
+        let solution = solver.best_solution().unwrap();
+        println!("{}", solution.error_squared());
+        assert!(solution.error_squared() < 1e-6);
+
+        // Confirm solution is ~identity
+        let translation = solution.translation();
+        println!("{:?}", translation);
+        assert!(translation.x.abs() < 1e-2);
+        assert!(translation.y.abs() < 1e-2);
+        assert!(translation.z.abs() < 1e-2);
+        let rotation = solution.rotation_matrix();
+        println!("{:?}", rotation);
+        assert!((rotation.x_axis.x - 1.0).abs() < 1e-2);
+        assert!((rotation.y_axis.y - 1.0).abs() < 1e-2);
+        assert!((rotation.z_axis.z - 1.0).abs() < 1e-2);
+        assert!(rotation.x_axis.y.abs() < 1e-2);
+        assert!(rotation.x_axis.z.abs() < 1e-2);
+        assert!(rotation.y_axis.x.abs() < 1e-2);
+        assert!(rotation.y_axis.z.abs() < 1e-2);
+        assert!(rotation.z_axis.x.abs() < 1e-2);
+        assert!(rotation.z_axis.y.abs() < 1e-2);
+    }
 
     #[test]
     fn test_example_solution() {
